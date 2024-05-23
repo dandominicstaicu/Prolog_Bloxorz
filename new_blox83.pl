@@ -9,7 +9,7 @@
 % primului apel set/4
 empty_state(state([], (0, 0), vertical)).
 
-% coordonata (0, 0) este coltul din stanga/sus (chiar dacă nu există un
+% coordonata (0, 0) este colțul din stânga/sus (chiar dacă nu există un
 % tile acolo)
 
 % set_tile/3
@@ -36,7 +36,7 @@ set_target(state(Cells, BlockPos, BlockOrientation), Pos, state([target(Pos) | C
 % set_fragile/3
 % set_fragile(+S, +Pos, -SNew)
 % Construiește starea SNew, care conține aceleași informații ca și S
-% și în plus faptul că la poziția Pos se o pătrățică fragilă, pe care
+% și în plus faptul că la poziția Pos se află o pătrățică fragilă, pe care
 % blocul nu poate sta în picioare.
 set_fragile(state(Cells, BlockPos, BlockOrientation), Pos, state([fragile(Pos) | Cells], BlockPos, BlockOrientation)).
 
@@ -49,14 +49,14 @@ set_block_initial(state(Cells, _, _), Pos, state([tile(Pos) | Cells], Pos, verti
 
 % get_b_pos/2
 % get_b_pos(+S, -BlockPos)
-% Obtine pozitia sau pozitiile blocului (în funcție de dacă blocul este
+% Obține poziția sau pozițiile blocului (în funcție de dacă blocul este
 % în picioare sau culcat, ca (X, Y) sau ca [(X1, Y1), (X2, Y2)]
 get_b_pos(state(_, (X, Y), vertical), (X, Y)).
 get_b_pos(state(_, (X, Y), horizontal), [(X, Y), (X1, Y)]) :- X1 is X + 1.
 
 % get_bounds/5
 % get_bounds(+S, -Xmin, -Xmax, -Ymin, -Ymax).
-% Obtine coordonatele limită de pe hartă la care exită celule.
+% Obține coordonatele limită de pe hartă la care există celule.
 get_bounds(state(Cells, _, _), Xmin, Xmax, Ymin, Ymax) :-
     findall(X, (member(Cell, Cells), arg(1, Cell, (X, _))), Xs),
     findall(Y, (member(Cell, Cells), arg(1, Cell, (_, Y))), Ys),
@@ -138,15 +138,43 @@ valid_move(state(Cells, _, _), Positions) :-
     forall(member(Pos, Positions), memberchk(tile(Pos), Cells)).
 
 % is_final/1
-% is_final(S)
-% Întoarce adevărat dacă în starea S blocul este în picioare, pe aceeași
-% poziție cu gaura (scopul).
+% is_final(+S)
+% Întoarce adevărat dacă în starea S blocul este în picioare, pe aceeași poziție cu gaura (scopul).
 is_final(state(Cells, (X, Y), vertical)) :-
     member(target((X, Y)), Cells).
 
-% pentru etapa 2
-% set_switch(+S, +Pos, +Switch, +Func, +Positions, SOut)
-% Switch: o sau x
-% Func: switch, uponly sau dnonly
-% Position: pozitiile podului
-set_switch(S, P, _, _, _, SNew) :- set_tile(S, P, SNew).
+% Helper predicate for testing
+ttSet0(S) :-
+    empty_state(S0),
+    set_block_initial(S0, (0, 0), S1),
+    set_tile(S1, (1, 0), S2),
+    set_tile(S2, (2, 0), S3),
+    set_target(S3, (0, 1), S4),
+    set_tile(S4, (1, 1), S5),
+    set_tile(S5, (2, 1), S).
+
+% Helper predicate for testing sequences
+ttSeq(S, [], S).
+ttSeq(S0, [M | Moves], SLast) :-
+    move(S0, M, S1),
+    ttSeq(S1, Moves, SLast).
+
+% Helper predicate for printing state
+print_state(state(Cells, (BX, BY), Orientation)) :-
+    get_bounds(state(Cells, (BX, BY), Orientation), XMin, XMax, YMin, YMax),
+    forall(between(YMin, YMax, Y),
+           (forall(between(XMin, XMax, X),
+                   (member(tile((X, Y)), Cells) -> write('+') ;
+                    member(target((X, Y)), Cells) -> write('$') ;
+                    (BX = X, BY = Y, Orientation = vertical) -> write('B') ;
+                    (Orientation = horizontal, (BX = X ; BX + 1 =:= X), BY = Y) -> write('b') ;
+                    write(' '))),
+            nl)).
+
+% Manually testing the given scenario
+test_scenario :-
+    ttSet0(S),
+    ( move(S, d, S1) -> format('Move successful. New state:\n'), print_state(S1) ; format('Move failed.\n') ).
+
+% Execute the test
+:- test_scenario.

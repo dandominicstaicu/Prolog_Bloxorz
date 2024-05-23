@@ -9,7 +9,7 @@
 % primului apel set/4
 empty_state(state([], (0, 0), vertical)).
 
-% coordonata (0, 0) este coltul din stanga/sus (chiar dacă nu există un
+% coordonata (0, 0) este colțul din stânga/sus (chiar dacă nu există un
 % tile acolo)
 
 % set_tile/3
@@ -36,7 +36,7 @@ set_target(state(Cells, BlockPos, BlockOrientation), Pos, state([target(Pos) | C
 % set_fragile/3
 % set_fragile(+S, +Pos, -SNew)
 % Construiește starea SNew, care conține aceleași informații ca și S
-% și în plus faptul că la poziția Pos se o pătrățică fragilă, pe care
+% și în plus faptul că la poziția Pos se află o pătrățică fragilă, pe care
 % blocul nu poate sta în picioare.
 set_fragile(state(Cells, BlockPos, BlockOrientation), Pos, state([fragile(Pos) | Cells], BlockPos, BlockOrientation)).
 
@@ -49,14 +49,14 @@ set_block_initial(state(Cells, _, _), Pos, state([tile(Pos) | Cells], Pos, verti
 
 % get_b_pos/2
 % get_b_pos(+S, -BlockPos)
-% Obtine pozitia sau pozitiile blocului (în funcție de dacă blocul este
+% Obține poziția sau pozițiile blocului (în funcție de dacă blocul este
 % în picioare sau culcat, ca (X, Y) sau ca [(X1, Y1), (X2, Y2)]
 get_b_pos(state(_, (X, Y), vertical), (X, Y)).
 get_b_pos(state(_, (X, Y), horizontal), [(X, Y), (X1, Y)]) :- X1 is X + 1.
 
 % get_bounds/5
 % get_bounds(+S, -Xmin, -Xmax, -Ymin, -Ymax).
-% Obtine coordonatele limită de pe hartă la care exită celule.
+% Obține coordonatele limită de pe hartă la care există celule.
 get_bounds(state(Cells, _, _), Xmin, Xmax, Ymin, Ymax) :-
     findall(X, (member(Cell, Cells), arg(1, Cell, (X, _))), Xs),
     findall(Y, (member(Cell, Cells), arg(1, Cell, (_, Y))), Ys),
@@ -87,55 +87,32 @@ cell_type(target(Pos), Pos, target).
 cell_type(oswitch(Pos), Pos, oswitch).
 cell_type(xswitch(Pos), Pos, xswitch).
 
-% neighbor/3
-% neighbor(+Pos, +Direction, -NewPos)
-% Calculează poziția nouă în funcție de direcție
-neighbor((X, Y), u, (X, Y1)) :- Y1 is Y - 1.
-neighbor((X, Y), d, (X, Y1)) :- Y1 is Y + 1.
-neighbor((X, Y), l, (X1, Y)) :- X1 is X - 1.
-neighbor((X, Y), r, (X1, Y)) :- X1 is X + 1.
-
-% neighbor2/3
-% neighbor2(+Pos, +Direction, -NewPos)
-% Calculează a doua poziție nouă pentru mișcare
-neighbor2((X, Y), u, (X, Y2)) :- Y2 is Y - 2.
-neighbor2((X, Y), d, (X, Y2)) :- Y2 is Y + 2.
-neighbor2((X, Y), l, (X2, Y)) :- X2 is X - 2.
-neighbor2((X, Y), r, (X2, Y)) :- X2 is X + 2.
-
 % move/3
-% move(+S, +Move, -SNext)
-% Calculează în SNext starea care rezultă din realizarea mutării Move în starea S.
+% move(S, Move, SNext)
+% Calculează în SNext starea care rezultă din realizarea mutării Move în
+% starea S.
 % Mutarea este una dintre d, u, l, r.
-% Întoarce false dacă mutarea duce la căderea blocului în vid (nu dacă blocul a ajuns la scop).
-move(state(Cells, (X, Y), vertical), Move, state(Cells, (NX1, NY1), horizontal)) :-
-    neighbor((X, Y), Move, (NX1, NY1)),
-    neighbor2((X, Y), Move, (NX2, NY2)),
-    valid_move(state(Cells, (X, Y), vertical), [(NX1, NY1), (NX2, NY2)]).
+% Întoarce false dacă mutarea duce la căderea blocului în vid (nu dacă
+% blocul a ajuns la scop).
+move(state(Cells, (X, Y), vertical), Move, state(Cells, (X1, Y1), horizontal)) :-
+    neighbor((X, Y), Move, (X1, Y1)),
+    neighbor2((X, Y), Move, (X2, Y2)),
+    valid_move(state(Cells, (X, Y), vertical), [(X1, Y1), (X2, Y2)]).
 
 move(state(Cells, (X1, Y1), horizontal), Move, state(Cells, (NX1, NY1), horizontal)) :-
     neighbor((X1, Y1), Move, (NX1, NY1)),
-    X2 is X1 + 1,
-    neighbor((X2, Y1), Move, (NX2, NY2)),
-    valid_move(state(Cells, (X1, Y1), horizontal), [(NX1, NY1), (NX2, NY2)]).
+    neighbor((X2, Y2), Move, (NX2, NY2)),
+    valid_move(state(Cells, (X1, Y1), horizontal), [(NX1, NY1), (NX2, NY2)]),
+    NX1 is X1 + (NX2 - X2), NY1 is Y1 + (NY2 - Y2).
 
-move(state(Cells, (X1, Y1), horizontal), Move, state(Cells, (NX, NY), vertical)) :-
-    neighbor((X1, Y1), Move, (NX, NY)),
-    X2 is X1 + 1,
-    valid_move(state(Cells, (X1, Y1), horizontal), [(NX, NY)]).
-
-move(state(Cells, (X, Y), vertical), Move, state(Cells, (NX, NY), vertical)) :-
-    neighbor((X, Y), Move, (NX, NY)),
-    valid_move(state(Cells, (X, Y), vertical), [(NX, NY)]).
-
-move(state(Cells, (X1, Y1), horizontal), Move, state(Cells, (NX, NY), vertical)) :-
-    neighbor((X1, Y1), Move, (NX, NY)),
-    X2 is X1 + 1,
-    valid_move(state(Cells, (X1, Y1), horizontal), [(NX, NY)]).
+move(state(Cells, (X1, Y1), horizontal), Move, state(Cells, (X2, Y2), vertical)) :-
+    neighbor((X1, Y1), Move, (X2, Y2)),
+    valid_move(state(Cells, (X1, Y1), horizontal), (X2, Y2)),
+    X2 is X1, Y2 is Y1.
 
 % Validarea mutării pentru pozițiile noi
 valid_move(state(Cells, _, _), Positions) :-
-    forall(member(Pos, Positions), memberchk(tile(Pos), Cells)).
+    forall(member(Pos, Positions), member(tile(Pos), Cells)).
 
 % is_final/1
 % is_final(S)
